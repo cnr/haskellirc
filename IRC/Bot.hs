@@ -27,8 +27,9 @@ type Bot a = ReaderT BotEnv IO a
 
 type BotEnv = (String, Int, Handle) -- Host, Port, Handle
 
-data BotConfig = BotConfig { botHost :: String
-                           , botPort :: Int
+data BotConfig = BotConfig { botHost  :: String
+                           , botPort  :: Int
+                           , botNick  :: String
                            , botParts :: [BotHandler]
                            }
 
@@ -55,12 +56,12 @@ printI :: Show a => a -> Bot ()
 printI = liftIO . print
 
 makeBot :: BotConfig -> IO ()
-makeBot (BotConfig addr port parts) = connect addr (show port) $ \(socket, address) -> do
+makeBot (BotConfig addr port nick parts) = connect addr (show port) $ \(socket, address) -> do
       handle <- liftIO $ socketToHandle socket ReadWriteMode
 
       let env = (addr, port, handle) :: BotEnv
 
-      runBot env startConnection
+      runBot env (login nick)
       runBot env (readMessages handle parts)
 
 readMessages :: Handle -> [BotHandler] -> Bot ()
@@ -77,12 +78,10 @@ readMessages handle parts = do
                              go parts t
                          Fail r _ _ -> liftIO $ print t >> print r
 
-startConnection :: Bot ()
-startConnection = do
-    writeMsg (RawIRCMessage Nothing "NICK" ["e-bot"])
-    writeMsg (RawIRCMessage Nothing "USER" ["e-bot", "0", "*", "e-bot"])
+login :: String -> Bot ()
+login nick = do
+    writeMsg (RawIRCMessage Nothing "NICK" [nick])
+    writeMsg (RawIRCMessage Nothing "USER" [nick, "0", "*", nick])
 
 runBot :: BotEnv -> Bot () -> IO ()
 runBot = flip runReaderT
-
-process = undefined

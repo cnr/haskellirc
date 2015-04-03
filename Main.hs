@@ -10,6 +10,7 @@ main = makeBot esper
 esper :: BotConfig
 esper = BotConfig { botHost = "availo.esper.net"
                   , botPort = 6667
+                  , botNick = "e-bot"
                   , botParts = [basics, printI]
                   }
 

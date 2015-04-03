@@ -93,32 +93,33 @@ data IRCMessage = Join String
       {- 372 -} | RPL_Motd String
       {- 375 -} | RPL_MotdStart String
       {- 376 -} | RPL_EndOfMotd String
+                | Unknown String
                 deriving (Show)
 
-rawToIRCMessage :: RawIRCMessage -> Maybe IRCMessage
+rawToIRCMessage :: RawIRCMessage -> IRCMessage
 rawToIRCMessage msg = case (rawCommand msg, rawParams msg) of
-        ("JOIN"   , c:[]      ) -> Just (Join c                                )
-        ("MODE"   , xs        ) -> Just (Mode xs                               )
-        ("NOTICE" , t:m:[]    ) -> Just (Notice (fromJust (rawPrefix msg)) t m )
-        ("PING"   , p:[]      ) -> Just (Ping p                                )
-        ("PRIVMSG", t:m:[]    ) -> Just (PrivMsg (fromJust (rawPrefix msg)) t m)
-        ("001"    , _:w:[]    ) -> Just (RPL_Welcome w                         )
-        ("002"    , _:h:[]    ) -> Just (RPL_YourHost h                        )
-        ("003"    , _:c:[]    ) -> Just (RPL_Created c                         )
-        ("004"    , _:xs      ) -> Just (RPL_MyInfo xs                         )
-        ("005"    , xs        ) -> Just (RPL_ISupport xs                       )
-        ("250"    , _:s:[]    ) -> Just (RPL_StatsConn s                       )
-        ("251"    , _:m:[]    ) -> Just (RPL_LUserClient m                     )
-        ("252"    , _:n:_:[]  ) -> Just (RPL_LUserOp (read n)                  )
-        ("254"    , _:n:_:[]  ) -> Just (RPL_LUserChannels (read n)            )
-        ("255"    , _:m:[]    ) -> Just (RPL_LUserMe m                         )
-        ("265"    , _:c:m:_:[]) -> Just (RPL_LocalUsers (read c) (read m)      )
-        ("266"    , _:c:m:_:[]) -> Just (RPL_GlobalUsers (read c) (read m)     )
-        ("332"    , _:c:t:[]  ) -> Just (RPL_Topic c t                         )
-        ("333"    , _:c:u:[]  ) -> Just (RPL_TopicWhoTime c u                  )
-        ("353"    , _:xs      ) -> Just (RPL_NamReply xs                       )
-        ("366"    , _:c:m:[]  ) -> Just (RPL_EndOfNames c m                    )
-        ("372"    , _:m:[]    ) -> Just (RPL_Motd m                            )
-        ("375"    , _:m:[]    ) -> Just (RPL_MotdStart m                       )
-        ("376"    , _:m:[]    ) -> Just (RPL_EndOfMotd m                       )
-        (_,_) -> Nothing
+        ("JOIN"   , c:[]      ) -> Join c
+        ("MODE"   , xs        ) -> Mode xs
+        ("NOTICE" , t:m:[]    ) -> Notice (fromJust (rawPrefix msg)) t m
+        ("PING"   , p:[]      ) -> Ping p
+        ("PRIVMSG", t:m:[]    ) -> PrivMsg (fromJust (rawPrefix msg)) t m
+        ("001"    , _:w:[]    ) -> RPL_Welcome w
+        ("002"    , _:h:[]    ) -> RPL_YourHost h
+        ("003"    , _:c:[]    ) -> RPL_Created c
+        ("004"    , _:xs      ) -> RPL_MyInfo xs
+        ("005"    , xs        ) -> RPL_ISupport xs
+        ("250"    , _:s:[]    ) -> RPL_StatsConn s
+        ("251"    , _:m:[]    ) -> RPL_LUserClient m
+        ("252"    , _:n:_:[]  ) -> RPL_LUserOp (read n)
+        ("254"    , _:n:_:[]  ) -> RPL_LUserChannels (read n)
+        ("255"    , _:m:[]    ) -> RPL_LUserMe m
+        ("265"    , _:c:m:_:[]) -> RPL_LocalUsers (read c) (read m)
+        ("266"    , _:c:m:_:[]) -> RPL_GlobalUsers (read c) (read m)
+        ("332"    , _:c:t:[]  ) -> RPL_Topic c t
+        ("333"    , _:c:u:[]  ) -> RPL_TopicWhoTime c u
+        ("353"    , _:xs      ) -> RPL_NamReply xs
+        ("366"    , _:c:m:[]  ) -> RPL_EndOfNames c m
+        ("372"    , _:m:[]    ) -> RPL_Motd m
+        ("375"    , _:m:[]    ) -> RPL_MotdStart m
+        ("376"    , _:m:[]    ) -> RPL_EndOfMotd m
+        (_,_)                   -> Unknown (show msg)

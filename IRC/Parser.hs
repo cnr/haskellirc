@@ -27,19 +27,19 @@ msgToString (RawIRCMessage rpre rcmd rprms) = fmtPrefix rpre ++ rcmd ++ fmtParam
             fmtPrefix (Just pre) = ':':pre ++ " "
             fmtPrefix _          = ""
 
-            fmtParams [] = ""
-            fmtParams (x:[]) = " :" ++ x
+            fmtParams []     = ""
+            fmtParams [x]    = " :" ++ x
             fmtParams (x:xs) = " " ++ x ++ fmtParams xs
 
 -- The `many space` before crlf is required to parse MODE messages from some networks
 ircParser :: Parser RawIRCMessage
-ircParser = RawIRCMessage <$> optionMaybe prefix <*> command <*> params <* many space <* crlf
+ircParser = RawIRCMessage <$> optional prefix <*> command <*> params <* many space <* crlf
         where
             prefix  = char ':' *> manyTill anyChar space
             command = many1 alphaNum
             params  = do
-                leading <- count 14 (optionMaybe (try (space *> middle)))
-                tail    <- optionMaybe (space *> trailing)
+                leading <- count 14 (optional (try (space *> middle)))
+                tail    <- optional (space *> trailing)
                 return (catMaybes (leading ++ [tail]))
             
             middle = (:) <$> nospcrlfcl <*> many (char ':' <|> nospcrlfcl)
@@ -54,16 +54,13 @@ ircParser = RawIRCMessage <$> optionMaybe prefix <*> command <*> params <* many 
 
 
 -- Combinators from Parsec that don't exist in Attoparsec
-optionMaybe :: (Alternative f) => f a -> f (Maybe a)
-optionMaybe p = Just <$> p <|> pure Nothing
-
 alphaNum :: Parser Char
 alphaNum = satisfy isAlphaNum
 
-oneOf :: [Char] -> Parser Char
+oneOf :: String -> Parser Char
 oneOf xs = satisfy (`elem` xs)
 
-noneOf :: [Char] -> Parser Char
+noneOf :: String -> Parser Char
 noneOf xs = satisfy (`notElem` xs)
 
 
@@ -98,28 +95,28 @@ data IRCMessage = Join String
 
 rawToIRCMessage :: RawIRCMessage -> IRCMessage
 rawToIRCMessage msg = case (rawCommand msg, rawParams msg) of
-        ("JOIN"   , c:[]      ) -> Join c
+        ("JOIN"   , [c]       ) -> Join c
         ("MODE"   , xs        ) -> Mode xs
-        ("NOTICE" , t:m:[]    ) -> Notice (fromJust (rawPrefix msg)) t m
-        ("PING"   , p:[]      ) -> Ping p
-        ("PRIVMSG", t:m:[]    ) -> PrivMsg (fromJust (rawPrefix msg)) t m
-        ("001"    , _:w:[]    ) -> RPL_Welcome w
-        ("002"    , _:h:[]    ) -> RPL_YourHost h
-        ("003"    , _:c:[]    ) -> RPL_Created c
+        ("NOTICE" , [t,m]     ) -> Notice (fromJust (rawPrefix msg)) t m
+        ("PING"   , [p]       ) -> Ping p
+        ("PRIVMSG", [t,m]     ) -> PrivMsg (fromJust (rawPrefix msg)) t m
+        ("001"    , [_,w]     ) -> RPL_Welcome w
+        ("002"    , [_,h]     ) -> RPL_YourHost h
+        ("003"    , [c]       ) -> RPL_Created c
         ("004"    , _:xs      ) -> RPL_MyInfo xs
         ("005"    , xs        ) -> RPL_ISupport xs
-        ("250"    , _:s:[]    ) -> RPL_StatsConn s
-        ("251"    , _:m:[]    ) -> RPL_LUserClient m
-        ("252"    , _:n:_:[]  ) -> RPL_LUserOp (read n)
-        ("254"    , _:n:_:[]  ) -> RPL_LUserChannels (read n)
-        ("255"    , _:m:[]    ) -> RPL_LUserMe m
-        ("265"    , _:c:m:_:[]) -> RPL_LocalUsers (read c) (read m)
-        ("266"    , _:c:m:_:[]) -> RPL_GlobalUsers (read c) (read m)
-        ("332"    , _:c:t:[]  ) -> RPL_Topic c t
-        ("333"    , _:c:u:[]  ) -> RPL_TopicWhoTime c u
+        ("250"    , [_,s]     ) -> RPL_StatsConn s
+        ("251"    , [_,m]     ) -> RPL_LUserClient m
+        ("252"    , [_,n,_]   ) -> RPL_LUserOp (read n)
+        ("254"    , [_,n,_]   ) -> RPL_LUserChannels (read n)
+        ("255"    , [_,m]     ) -> RPL_LUserMe m
+        ("265"    , [_,c,m,_] ) -> RPL_LocalUsers (read c) (read m)
+        ("266"    , [_,c,m,_] ) -> RPL_GlobalUsers (read c) (read m)
+        ("332"    , [_,c,t]   ) -> RPL_Topic c t
+        ("333"    , [_,c,u]   ) -> RPL_TopicWhoTime c u
         ("353"    , _:xs      ) -> RPL_NamReply xs
-        ("366"    , _:c:m:[]  ) -> RPL_EndOfNames c m
-        ("372"    , _:m:[]    ) -> RPL_Motd m
-        ("375"    , _:m:[]    ) -> RPL_MotdStart m
-        ("376"    , _:m:[]    ) -> RPL_EndOfMotd m
+        ("366"    , [_,c,m]   ) -> RPL_EndOfNames c m
+        ("372"    , [_,m]     ) -> RPL_Motd m
+        ("375"    , [_,m]     ) -> RPL_MotdStart m
+        ("376"    , [_,m]     ) -> RPL_EndOfMotd m
         (_,_)                   -> Unknown (show msg)
